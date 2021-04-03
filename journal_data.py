@@ -54,16 +54,14 @@ if not os.path.exists("./profit.xlsx"):
 
 #### THE BRAIN ####
 def show_values(event):
-    patterns = [pattern.name for pattern in strategies  ]
-    wins     = [pattern.wins for pattern in strategies  ]
-    losses   = [pattern.losses for pattern in strategies]
-    totals   = [pattern.total for pattern in strategies ]
     choice = pattern_options.get()
     if choice:
-        pattern_label.config(text=f"Patterns: {patterns[patterns.index(choice)]}")
-        wins_label.config(text=f"Wins: {wins[patterns.index(choice)]}")
-        losses_label.config(text=f"Losses: {losses[patterns.index(choice)]}")
-        totals_label.config(text=f"Total: {totals[patterns.index(choice)]}")
+        pattern  = [strategies[index] for index in range(len(strategies)) if strategies[index].name == choice][0]
+        pattern_label.config(text=f"Patterns: {pattern.name}")
+        wins_label.config(text=f"Wins: {pattern.wins}")
+        losses_label.config(text=f"Losses: {pattern.losses}")
+        totals_label.config(text=f"Total: {pattern.total}")
+        profits_label.config(text=f"Profits: {sum(pattern.earned)}")
 
 
 def add_pattern(name):
@@ -83,13 +81,14 @@ def add_pattern(name):
     pattern_entry.delete(0, END)
 
 
-def update_after_delete(patterns, wins, losses, totals):
+def update_after_delete(patterns, wins, losses, totals, profits):
     try:
         pattern_options.set(patterns[0])
         pattern_label.config(text=f"Patterns: {patterns[0]}")
         wins_label.config(text=f"Wins: {wins[0]}")
         losses_label.config(text=f"Losses: {losses[0]}")
         totals_label.config(text=f"Total: {totals[0]}")
+        profits_label.config(text=f"Profits: {sum(profits[0])}")
     except IndexError:
         pattern_options.set("")
         pattern_label.config(text=f"Patterns")
@@ -104,44 +103,44 @@ def delete_pattern(choice):
         wins     = [pattern.wins for pattern in strategies   if pattern.name != choice]
         losses   = [pattern.losses for pattern in strategies if pattern.name != choice]
         totals   = [pattern.total for pattern in strategies  if pattern.name != choice]
+        profits  = [pattern.earned for pattern in strategies if pattern.name != choice]
         save_dataframe(patterns, wins, losses, totals)
 
         profit_dataframe = pandas.read_excel("./profit.xlsx", sheet_name="Profit")
         profit_dataframe.drop(choice, inplace=True, axis=1)
         profit_dataframe.to_excel("./profit.xlsx", sheet_name="Profit", index=False)
-        
+
         pattern_options.config(values = patterns)
-        update_after_delete(patterns, wins, losses, totals)
+        update_after_delete(patterns, wins, losses, totals, profits)
     else:
         messagebox.showerror("Error", "Select a pattern to delete.")
 
 
 def update_profitdata(choice, profit, window, condition):
     window.destroy()
+    pattern  = [strategies[index] for index in range(len(strategies)) if strategies[index].name == choice][0]
+    if condition:
+        pattern.add_win()
+        wins_label.config(text=f"Wins: {pattern.wins}")
+    else:
+        pattern.add_loss()
+        losses_label.config(text=f"Losses: {pattern.losses}")
+    pattern.add_total()
+    pattern.add_profit(profit)
+    totals_label.config(text=f"Total: {pattern.total}")
+    profits_label.config(text=f"Profits: {sum(pattern.earned)}")
+    
     patterns = [pattern.name for pattern in strategies  ]
     wins     = [pattern.wins for pattern in strategies  ]
     losses   = [pattern.losses for pattern in strategies]
     totals   = [pattern.total for pattern in strategies ]
-    pattern  = [strategies[index] for index in range(len(strategies)) if strategies[index].name == choice][0]
-    if condition:
-        pattern.add_win()
-        wins[patterns.index(choice)] += 1
-        wins_label.config(text=f"Wins: {wins[patterns.index(choice)]}")
-    else:
-        pattern.add_loss()
-        losses[patterns.index(choice)] += 1
-        losses_label.config(text=f"Losses: {losses[patterns.index(choice)]}")
-    pattern.add_total()
-    totals[patterns.index(choice)] += 1
-    pattern.add_profit(profit)
-    totals_label.config(text=f"Total: {totals[patterns.index(choice)]}")
     save_dataframe(patterns, wins, losses, totals)
     
     profit_dataframe = pandas.read_excel("./profit.xlsx", sheet_name="Profit")
     df2 = pandas.DataFrame([profit], columns=[pattern.name])
     profit_dataframe = profit_dataframe.append(df2, ignore_index=True)
     profit_dataframe[pattern.name] = pandas.Series(pattern.earned)
-    print("After", profit_dataframe)
+    # print("After", profit_dataframe)
     profit_dataframe.to_excel("./profit.xlsx", sheet_name="Profit", index=False)
 
 
@@ -207,7 +206,7 @@ def show_barchart():
     totals   = [pattern.total for pattern in strategies ]
     if patterns:
         means = list(map(calc_mean, totals, wins))
-        print(means)
+        # print(means)
 
         x = numpy.arange(len(patterns))
         width = 0.35
@@ -270,11 +269,8 @@ strategies = update_patterndata(strategies)
 first_frame = Frame(root, width=500, height=500)
 first_frame.pack()
 
-def get_names():
-    return [item.name for item in strategies]
-
 variable = StringVar(root)
-pattern_options = ttk.Combobox(first_frame, textvariable=variable, state="readonly", width=30, values=get_names())
+pattern_options = ttk.Combobox(first_frame, textvariable=variable, state="readonly", width=30, values=[pattern.name for pattern in strategies])
 pattern_options.bind("<<ComboboxSelected>>", show_values)
 pattern_entry   = Entry(first_frame, width=33)
 pattern_button  = Button(first_frame, width=30, text="Add Pattern", command=lambda: add_pattern(pattern_entry.get()))
