@@ -67,17 +67,15 @@ def show_values(event):
 
 
 def add_pattern(name):
-    patterns = [pattern.name for pattern in strategies  ]
-    wins     = [pattern.wins for pattern in strategies  ]
-    losses   = [pattern.losses for pattern in strategies]
-    totals   = [pattern.total for pattern in strategies ]
+    patterns = [pattern.name for pattern in strategies]
     if name and not name in patterns:
         strategies.append(Strategy(name, [], 0, 0, 0))
-        patterns.append(name)
-        wins.append(0)
-        losses.append(0)
-        totals.append(0)
+        patterns = [pattern.name for pattern in strategies  ]
+        wins     = [pattern.wins for pattern in strategies  ]
+        losses   = [pattern.losses for pattern in strategies]
+        totals   = [pattern.total for pattern in strategies ]
         save_dataframe(patterns, wins, losses, totals)
+
         profit_dataframe = pandas.read_excel("./profit.xlsx", sheet_name="Profit")
         profit_dataframe[name] = ""
         profit_dataframe.to_excel("./profit.xlsx", sheet_name="Profit", index=False)
@@ -101,17 +99,17 @@ def update_after_delete(patterns, wins, losses, totals):
 
 
 def delete_pattern(choice):
-    patterns = [pattern.name for pattern in strategies  ]
-    wins     = [pattern.wins for pattern in strategies  ]
-    losses   = [pattern.losses for pattern in strategies]
-    totals   = [pattern.total for pattern in strategies ]
     if choice:
-        wins.pop(patterns.index(choice))
-        losses.pop(patterns.index(choice))
-        totals.pop(patterns.index(choice))
-        patterns.pop(patterns.index(choice))
-        
+        patterns = [pattern.name for pattern in strategies   if pattern.name != choice]
+        wins     = [pattern.wins for pattern in strategies   if pattern.name != choice]
+        losses   = [pattern.losses for pattern in strategies if pattern.name != choice]
+        totals   = [pattern.total for pattern in strategies  if pattern.name != choice]
         save_dataframe(patterns, wins, losses, totals)
+
+        profit_dataframe = pandas.read_excel("./profit.xlsx", sheet_name="Profit")
+        profit_dataframe.drop(choice, inplace=True, axis=1)
+        profit_dataframe.to_excel("./profit.xlsx", sheet_name="Profit", index=False)
+        
         pattern_options.config(values = patterns)
         update_after_delete(patterns, wins, losses, totals)
     else:
@@ -140,12 +138,9 @@ def update_profitdata(choice, profit, window, condition):
     save_dataframe(patterns, wins, losses, totals)
     
     profit_dataframe = pandas.read_excel("./profit.xlsx", sheet_name="Profit")
-    try:
-        profit_dataframe[pattern.name] = pattern.earned
-    except ValueError:
-        df2 = pandas.DataFrame([profit], columns=[pattern.name])
-        profit_dataframe = profit_dataframe.append(df2, ignore_index=True)
-        profit_dataframe[pattern.name] = pandas.Series(pattern.earned)
+    df2 = pandas.DataFrame([profit], columns=[pattern.name])
+    profit_dataframe = profit_dataframe.append(df2, ignore_index=True)
+    profit_dataframe[pattern.name] = pandas.Series(pattern.earned)
     print("After", profit_dataframe)
     profit_dataframe.to_excel("./profit.xlsx", sheet_name="Profit", index=False)
 
